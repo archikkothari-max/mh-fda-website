@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maharashtra FDA | Admin Portal</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #e8f1f7, #f7fafc);
+      color: #17324d;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      padding: 36px;
+      background: white;
+      border: 1px solid #dbe5ed;
+      border-radius: 18px;
+      box-shadow: 0 16px 45px rgba(20, 50, 75, .1);
+    }
+
+    .tag {
+      display: inline-block;
+      background: #e5f5ed;
+      color: #166534;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    h1 { margin: 18px 0 8px; font-size: 27px; }
+    p { color: #617386; line-height: 1.5; }
+
+    label {
+      display: block;
+      margin: 18px 0 7px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #ccd8e2;
+      border-radius: 9px;
+      font-size: 15px;
+    }
+
+    input:focus {
+      outline: 2px solid #8bc6d3;
+      border-color: #155e75;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      background: #155e75;
+      color: white;
+      border: none;
+      border-radius: 9px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; cursor: wait; }
+
+    .secondary { background: #334155; }
+    #message { overflow-wrap: anywhere; font-size: 14px; }
+    .hidden { display: none !important; }
+
+    .footer {
+      margin-top: 25px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card">
+    <span class="tag">SECURE ADMINISTRATION</span>
+    <h1>Maharashtra FDA</h1>
+    <p>Sign in to access the website administration portal.</p>
+
+    <form id="loginForm">
+      <label for="email">Admin email</label>
+      <input id="email" type="email" required
+        autocomplete="username" placeholder="Enter your email">
+
+      <label for="password">Password</label>
+      <input id="password" type="password" required
+        autocomplete="current-password" placeholder="Enter your password">
+
+      <button id="loginButton" type="submit">Sign in securely</button>
+    </form>
+
+    <section id="dashboard" class="hidden">
+      <h2>Admin access verified</h2>
+      <p>You are signed in as an authorized administrator.</p>
+      <p>The AI website editor will be added in the next stage.</p>
+      <button id="logoutButton" class="secondary" type="button">
+        Sign out
+      </button>
+    </section>
+
+    <p id="message" role="status" aria-live="polite"></p>
+
+    <div class="footer">
+      Authorized personnel only. Access is monitored by account permissions.
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    // Replace both placeholders with your Supabase project details.
+    const SUPABASE_URL = "https://ozzscidbiejoojriyazh.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_jYp76DUiswiO8lRiupcbbA_aqFUtILn";
+
+    const form = document.getElementById("loginForm");
+    const dashboard = document.getElementById("dashboard");
+    const loginButton = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+
+    if (
+      SUPABASE_URL === "YOUR_PROJECT_URL" ||
+      SUPABASE_PUBLISHABLE_KEY === "YOUR_PUBLISHABLE_KEY"
+    ) {
+      loginButton.disabled = true;
+      message.textContent =
+        "Setup required: add your Supabase Project URL and publishable key.";
+    } else {
+      const supabase = createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+      );
+
+      async function checkAdmin() {
+        const { data: { user }, error: userError } =
+          await supabase.auth.getUser();
+
+        if (userError || !user) {
+          form.classList.remove("hidden");
+          dashboard.classList.add("hidden");
+          return;
+        }
+
+        const { data: isAdmin, error: adminError } =
+          await supabase.rpc("is_admin");
+
+        if (adminError || isAdmin !== true) {
+          await supabase.auth.signOut();
+          form.classList.remove("hidden");
+          dashboard.classList.add("hidden");
+          message.textContent =
+            "This account is not authorized for admin access.";
+          return;
+        }
+
+        form.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        message.textContent = "Administrator access verified.";
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        loginButton.disabled = true;
+        message.textContent = "Signing in...";
+
+        try {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: document.getElementById("email").value.trim(),
+            password: document.getElementById("password").value
+          });
+
+          if (error) {
+            message.textContent =
+              "Sign-in failed. Check your email and password.";
+          } else {
+            await checkAdmin();
+          }
+        } catch {
+          message.textContent =
+            "Connection error. Check your Supabase settings.";
+        } finally {
+          loginButton.disabled = false;
+        }
+      });
+
+      document.getElementById("logoutButton")
+        .addEventListener("click", async () => {
+          await supabase.auth.signOut();
+          dashboard.classList.add("hidden");
+          form.classList.remove("hidden");
+          message.textContent = "You have signed out.";
+        });
+
+      checkAdmin();
+    }
+  </script>
+</body>
+</html>
